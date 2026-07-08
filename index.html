@@ -274,7 +274,7 @@
             <!-- Live Discord Invite Link -->
             <a class="footer-btn discord-style" target="_blank" href="https://discord.gg/rUhMNFCgPq">
                 <img src="https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0a6a49cf127bf92de1e2_icon_clyde_blurple_RGB.png" alt="Discord Link">
-                <span>Join Discord Bunker</span>
+                <span>The Infernum Gazette discord</span>
             </a>
 
             <!-- Buy Me A Coffee Button -->
@@ -325,7 +325,6 @@
                 authError.innerText = isAutoLoad ? "🔄 Auto-loading secure token..." : "🔄 Handshaking with Torn API Matrix...";
                 authBtn.disabled = true;
                 
-                // Added a required application comment tag to bypass strict rate limit blocks
                 const response = await fetch(`https://api.torn.com/user/?selections=profile&key=${apiKey}&comment=InfernumHQ`);
                 const data = await response.json();
                 
@@ -355,7 +354,6 @@
             } catch (err) { 
                 authBtn.disabled = false;
                 authError.style.color = "#ff4444";
-                // Provide explicit instructions for local browser file sandbox blocks
                 authError.innerHTML = `❌ Browser Sandbox Connection Blocked.<br><br>` + 
                                       `<strong>Why?</strong> Modern browsers block external API calls when running HTML files directly off your desktop.<br><br>` + 
                                       `<strong>Quick Fix:</strong> Paste your API key here, then open your browser console (Press F12, go to the Console tab), type:<br>` + 
