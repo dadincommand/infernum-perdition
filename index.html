@@ -1,3 +1,7 @@
+Got it! I have updated the code block to include your exact Discord link ([https://discord.gg/rUhMNFCgPq](https://discord.gg/rUhMNFCgPq)).
+The footer is now fully configured and ready for production deployment.
+### 🛠️ Updated War Room Dashboard (index.html)
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -100,6 +104,57 @@
         a { color: #5194ff; text-decoration: none; }
         a:hover { text-decoration: underline; }
         .status { margin-top: 15px; color: #00ffcc; font-weight: 600; }
+
+        /* --- Community Footer Rows --- */
+        .donation-footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 25px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .footer-btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 10px 22px;
+            font-size: 1rem;
+            font-weight: 700;
+            border-radius: 8px;
+            text-decoration: none;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .footer-btn:hover {
+            transform: translateY(-2px);
+            text-decoration: none;
+        }
+        .footer-btn img {
+            height: 20px;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        
+        /* Buy Me A Coffee Custom Styling */
+        .bmc-style {
+            background-color: #FFDD00;
+            color: #000000;
+            font-family: 'Cookie', cursive, sans-serif;
+        }
+        .bmc-style:hover {
+            box-shadow: 0px 6px 14px rgba(255, 221, 0, 0.4);
+        }
+
+        /* Discord Button Styling */
+        .discord-style {
+            background-color: #5865F2;
+            color: #ffffff;
+        }
+        .discord-style:hover {
+            box-shadow: 0px 6px 14px rgba(88, 101, 242, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -207,7 +262,21 @@
                     </table>
                 </div>
             </div>
+        </div>
 
+        <!-- Integrated Support Section Footer -->
+        <div class="donation-footer">
+            <!-- Live Discord Invite Link -->
+            <a class="footer-btn discord-style" target="_blank" href="https://discord.gg/rUhMNFCgPq">
+                <img src="https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0a6a49cf127bf92de1e2_icon_clyde_blurple_RGB.png" alt="Discord Link">
+                <span>Join Discord Bunker</span>
+            </a>
+
+            <!-- Buy Me A Coffee Button -->
+            <a class="footer-btn bmc-style" target="_blank" href="https://www.buymeacoffee.com/jonny752">
+                <img src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg" alt="Buy me a coffee">
+                <span>Buy me a coffee</span>
+            </a>
         </div>
     </div>
 
@@ -510,3 +579,5 @@
     </script>
 </body>
 </html>
+
+```
