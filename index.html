@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infernum Perdition - War Report Tool</title>
+    <style>
+        /* --- Dark War-Room Theme Styling --- */
+        :root {
+            --bg-main: #121212;
+            --bg-card: #1a1a1a;
+            --bg-input: #242424;
+            --primary: #bd0909; /* Crimson Accent */
+            --primary-hover: #e61010;
+            --success: #2bba5c;
+            --success-hover: #34d069;
+            --text-main: #e0e0e0;
+            --text-muted: #888888;
+            --border: #2d2d2d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            padding: 30px 15px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+
+        header h1 {
+            color: #fff;
+            font-size: 2.2rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-weight: 800;
+            display: inline-block;
+            border-bottom: 3px solid var(--primary);
+            padding-bottom: 8px;
+            text-shadow: 0 0 10px rgba(189, 9, 9, 0.3);
+        }
+
+        header p {
+            color: var(--text-muted);
+            margin-top: 10px;
+            font-size: 0.95rem;
+        }
+
+        .welcome-banner {
+            background: linear-gradient(135deg, #1f1212 0%, #290a0a 100%);
+            border: 1px solid var(--primary);
+            color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            margin-bottom: 25px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            box-shadow: 0 0 15px rgba(189, 9, 9, 0.2);
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            margin-bottom: 25px;
+        }
+
+        .card h3 {
+            color: #fff;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        /* --- Auth Inputs --- */
+        .api-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 6px;
+            color: #fff;
+            font-family: monospace;
+            font-size: 1rem;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* --- Custom File Upload Button --- */
+        .file-upload-wrapper {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            background: var(--bg-input);
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px dashed #444;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        input[type="file"]:hover {
+            border-color: var(--primary);
+        }
+
+        /* --- Interactive Toggles --- */
+        .checkbox-container {
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            user-select: none;
+            cursor: pointer;
+        }
+
+        .checkbox-container input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        /* --- Buttons --- */
+        .actions-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 5px;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        #downloadBtn {
+            background-color: var(--success);
+        }
+
+        #downloadBtn:hover {
+            background-color: var(--success-hover);
+        }
+
+        .status {
+            font-weight: 600;
+            margin-top: 15px;
+            color: #00ffcc;
+            font-size: 0.9rem;
+        }
+
+        .error-status {
+            color: #ff4444;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        /* --- Table Styling --- */
+        .table-responsive {
+            overflow-x: auto;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #161616;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background-color: #1e1e1e;
+            color: var(--primary);
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.5px;
+        }
+
+        tr:hover { background-color: #1f1f1f; }
+        td:nth-child(2) { font-weight: bold; color: #fff; }
+        td:last-child { font-weight: bold; color: #ffb700; }
+
+        @media (max-width: 600px) {
+            body { padding: 15px 10px; }
+            header h1 { font-size: 1.6rem; }
+            .api-input-group { flex-direction: column; }
+            .actions-row button { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Infernum Perdition</h1>
+            <p>War Report Processing Terminal</p>
+        </header>
+
+        <!-- Dynamic Welcome Banner (Hidden by default) -->
+        <div id="welcomeBanner" class="welcome-banner" style="display: none;"></div>
+        
+        <!-- Step 0: Gatekeeper Authenticator -->
+        <div class="card" id="authCard">
+            <h3>Bunker Access Required</h3>
+            <p style="color: var(--text-muted); margin-bottom: 15px; font-size: 0.9rem;">
+                Input your Public or Limited Access Torn API Key to verify your faction membership.
+            </p>
+            <div class="api-input-group">
+                <input type="text" id="apiKeyInput" placeholder="Enter Torn API Key..." maxlength="16">
+                <button onclick="verifyFactionMember()">Authenticate</button>
+            </div>
+            <div id="authError" class="error-status"></div>
+        </div>
+
+        <!-- Step 1: Main Tool Box (Locked by default) -->
+        <div class="card" id="mainToolCard" style="display: none;">
+            <h3>1. Feed Attack Log</h3>
+            <div class="file-upload-wrapper">
+                <input type="file" id="csvFile" accept=".csv">
+            </div>
+            
+            <div class="checkbox-container">
+                <input type="checkbox" id="filterNone" checked>
+                <label for="filterNone"><strong>Isolate Group Attacks</strong> (Disregard "None" assist hits)</label>
+            </div>
+            
+            <div class="actions-row">
+                <button onclick="processCSV()">Analyze Log</button>
+                <button id="downloadBtn" style="display:none;" onclick="downloadCSV()">📥 Download Compiled CSV</button>
+            </div>
+            <div id="status" class="status"></div>
+        </div>
+
+        <!-- Step 2: Live View Grid -->
+        <div class="card" id="resultsCard" style="display:none;">
+            <h3>Live Preview (Newest 25 Rows)</h3>
+            <div class="table-responsive">
+                <table id="resultsTable">
+                    <thead>
+                        <tr>
+                            <th>Time (TCT)</th>
+                            <th>Target</th>
+                            <th>Initiator</th>
+                            <th>Finisher</th>
+                            <th>Assistants</th>
+                            <th>Respect</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- SECURE CONFIGURATION ---
+        const ALLOWED_FACTION_ID = 11131; // Locked to Infernum Perdition ID
+        const FACTION_NAME_MATCH = "Infernum Perdition"; 
+        
+        let processedDataRows = [];
+        let isAuthenticated = false;
+
+        // --- TORN API AUTHORIZATION SYSTEM ---
+        async function verifyFactionMember() {
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            const authError = document.getElementById('authError');
+            
+            if (apiKey.length !== 16) {
+                authError.innerText = "❌ Invalid key length. Torn API keys must be exactly 16 characters.";
+                return;
+            }
+
+            authError.innerText = "Verifying security credentials...";
+
+            try {
+                // Call Torn API directly from the browser
+                const response = await fetch(`https://api.torn.com/user/?selections=profile&key=${apiKey}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    authError.innerText = `❌ Torn API Error: ${data.error.error || "Invalid Key"}`;
+                    return;
+                }
+
+                const username = data.name;
+                const userFactionId = data.faction ? data.faction.faction_id : null;
+
+                // Validate using the strict numeric Faction ID
+                if (userFactionId === ALLOWED_FACTION_ID) {
+                    isAuthenticated = true;
+                    
+                    // Display Bunker Welcome Greeting
+                    const banner = document.getElementById('welcomeBanner');
+                    banner.innerText = `Welcome ${username} to the Infernum war tools bunker`;
+                    banner.style.display = 'block';
+
+                    // Switch visible panels
+                    document.getElementById('authCard').style.display = 'none';
+                    document.getElementById('mainToolCard').style.display = 'block';
+                } else {
+                    const currentFaction = data.faction ? data.faction.faction_name : 'No Faction';
+                    authError.innerText = `❌ Access Denied: This key belongs to a member of "${currentFaction}" (ID: ${userFactionId}). Only members of Infernum Perdition are permitted.`;
+                }
+
+            } catch (err) {
+                authError.innerText = "❌ Network error connecting to Torn API. Try again.";
+                console.error(err);
+            }
+        }
+
+        // --- PARSER AND FLATTENER LOGIC ---
+        function parseCSV(text) {
+            let lines = text.split(/\r?\n/);
+            return lines.map(line => {
+                let result = [];
+                let current = '';
+                let inQuotes = false;
+                for (let i = 0; i < line.length; i++) {
+                    let char = line[i];
+                    if (char === '"') { inQuotes = !inQuotes; }
+                    else if (char === ',' && !inQuotes) {
+                        result.push(current.trim());
+                        current = '';
+                    } else { current += char; }
+                }
+                result.push(current.trim());
+                return result;
+            }).filter(row => row.length > 1);
+        }
+
+        function processCSV() {
+            if (!isAuthenticated) {
+                alert("Bunker security breach. Please authenticate first.");
+                return;
+            }
+
+            const fileInput = document.getElementById('csvFile');
+            const statusDiv = document.getElementById('status');
+            const filterChecked = document.getElementById('filterNone').checked;
+            
+            if (!fileInput.files.length) {
+                alert("Please select a CSV file first!");
+                return;
+            }
+
+            statusDiv.innerText = "Processing logs... hang tight.";
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const rows = parseCSV(text);
+                if (rows.length < 2) { alert("Invalid or empty CSV."); return; }
+
+                const headers = rows[0];
+                const getIndex = (name) => headers.indexOf(name);
+                
+                const idxAttackerFaction = getIndex('attacker_factionname');
+                const idxResult = getIndex('result');
+                const idxAttacker = getIndex('attacker_name');
+                const idxDefender = getIndex('defender_name');
+                const idxTS = getIndex('timestamp_started');
+                const idxRespect = getIndex('respect_gain');
+
+                const finishingMoves = ['Attacked', 'Hospitalized', 'Mugged'];
+                let fightSessions = {};
+
+                for (let i = 1; i < rows.length; i++) {
+                    let row = rows[i];
+                    if (row[idxAttackerFaction] === FACTION_NAME_MATCH && finishingMoves.includes(row[idxResult])) {
+                        fightSessions[i] = {
+                            finisherRow: row,
+                            associatedRows: [row]
+                        };
+                    }
+                }
+
+                for (let i = 1; i < rows.length; i++) {
+                    let row = rows[i];
+                    if (row[idxAttackerFaction] === FACTION_NAME_MATCH && ['Assist', 'Lost'].includes(row[idxResult])) {
+                        let defender = row[idxDefender];
+                        let closestKey = null;
+                        let smallestDistance = Infinity;
+
+                        for (let fIdx in fightSessions) {
+                            if (fightSessions[fIdx].finisherRow[idxDefender] === defender) {
+                                let distance = Math.abs(i - parseInt(fIdx));
+                                if (distance < smallestDistance) {
+                                    smallestDistance = distance;
+                                    closestKey = fIdx;
+                                }
+                            }
+                        }
+                        if (closestKey) { fightSessions[closestKey].associatedRows.push(row); }
+                    }
+                }
+
+                let compiledReport = [];
+
+                for (let fIdx in fightSessions) {
+                    let session = fightSessions[fIdx];
+                    let fRow = session.finisherRow;
+                    
+                    let sortedHits = [...session.associatedRows].sort((a,b) => parseInt(a[idxTS]) - parseInt(b[idxTS]));
+                    let initiator = sortedHits[0][idxAttacker];
+
+                    let finisher = fRow[idxAttacker];
+                    let defender = fRow[idxDefender];
+                    let respect = parseFloat(fRow[idxRespect] || 0).toFixed(2);
+
+                    let dateObj = new Date(parseInt(fRow[idxTS]) * 1000);
+                    let day = String(dateObj.getUTCDate()).padStart(2, '0');
+                    let month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+                    let hours = String(dateObj.getUTCHours()).padStart(2, '0');
+                    let mins = String(dateObj.getUTCMinutes()).padStart(2, '0');
+                    let tctTime = `${day}/${month} ${hours}:${mins}`;
+
+                    let assistSet = new Set();
+                    session.associatedRows.forEach(r => {
+                        if (r[idxResult] === 'Assist' && r[idxAttacker] !== finisher) {
+                            assistSet.add(r[idxAttacker]);
+                        }
+                    });
+                    let assistantsArr = Array.from(assistSet).sort();
+                    let assistantsStr = assistantsArr.length ? assistantsArr.join(", ") : "None";
+
+                    if (filterChecked && assistantsStr === "None") { continue; }
+
+                    compiledReport.push({ tctTime, defender, initiator, finisher, assistantsStr, respect, unix: parseInt(fRow[idxTS]) });
+                }
+
+                compiledReport.sort((a,b) => b.unix - a.unix);
+                processedDataRows = compiledReport;
+
+                const tbody = document.getElementById('tableBody');
+                tbody.innerHTML = "";
+                compiledReport.slice(0, 25).forEach(res => {
+                    let tr = `<tr>
+                        <td>${res.tctTime}</td>
+                        <td>${res.defender}</td>
+                        <td>${res.initiator}</td>
+                        <td>${res.finisher}</td>
+                        <td>${res.assistantsStr}</td>
+                        <td>${res.respect}</td>
+                    </tr>`;
+                    tbody.innerHTML += tr;
+                });
+
+                document.getElementById('resultsCard').style.display = 'block';
+                document.getElementById('downloadBtn').style.display = 'inline-block';
+                statusDiv.innerText = `💥 Compiled ${compiledReport.length} war victories successfully.`;
+            };
+
+            reader.readAsText(file);
+        }
+
+        function downloadCSV() {
+            if (!processedDataRows.length) return;
+            let csvContent = "Time (TCT),Target,Initiator,Finisher,Assistants,Respect Gained\n";
+            processedDataRows.forEach(r => {
+                csvContent += `"${r.tctTime}","${r.defender}","${r.initiator}","${r.finisher}","${r.assistantsStr}",${r.respect}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", "infernum_compiled_war_report.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
