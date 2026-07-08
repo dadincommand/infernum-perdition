@@ -38,7 +38,13 @@
             background: linear-gradient(135deg, #1f1212 0%, #290a0a 100%);
             border: 1px solid var(--primary); color: #fff; padding: 15px;
             border-radius: 6px; text-align: center; margin-bottom: 25px; font-weight: bold;
+            display: flex; justify-content: space-between; align-items: center;
         }
+        .logout-btn {
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            padding: 4px 10px; font-size: 0.8rem; border-radius: 4px; color: #fff; cursor: pointer;
+        }
+        .logout-btn:hover { background: var(--primary); border-color: var(--primary); }
 
         .card {
             background-color: var(--bg-card); border: 1px solid var(--border);
@@ -161,22 +167,22 @@
             <p>Unified Combat Operations & Target Intel Hub</p>
         </header>
 
-        <div id="welcomeBanner" class="welcome-banner" style="display: none;"></div>
+        <div id="welcomeBanner" class="welcome-banner" style="display: none;">
+            <span id="welcomeText"></span>
+            <button class="logout-btn" onclick="terminateSession()">Clear Key / Sign Out</button>
+        </div>
         
-        <!-- Gatekeeper Gate -->
         <div class="card" id="authCard">
             <h3>Bunker Authentication Required</h3>
             <div style="display:flex; gap:10px;">
                 <input type="text" id="apiKeyInput" placeholder="Enter Torn API Key..." maxlength="16">
-                <button onclick="verifyFactionMember()">Authenticate</button>
+                <button onclick="handleManualAuth()">Authenticate & Save</button>
             </div>
             <div id="authError" style="color:#ff4444; margin-top:10px; font-weight:bold;"></div>
         </div>
 
-        <!-- System Controls -->
         <div id="mainDashboard" style="display: none;">
             
-            <!-- Centralized File Input Deck -->
             <div class="card">
                 <h3>1. Master Data Stream Uploads</h3>
                 <div class="grid-inputs">
@@ -197,13 +203,11 @@
                 <div id="masterStatus" class="status"></div>
             </div>
 
-            <!-- Navigation Sub-Tabs -->
             <div class="tabs-container">
                 <button class="tab-btn active" onclick="switchTab('matchmakerTab', this)">🎯 Target Matchmaker</button>
                 <button class="tab-btn" onclick="switchTab('assistsTab', this)">⚔️ Assist & Group Attacks Log</button>
             </div>
 
-            <!-- TAB A: MATCHMAKER PANEL -->
             <div id="matchmakerTab" class="tab-panel active card">
                 <h3>Select Attacker to Fetch Matchmaking Solutions</h3>
                 <div style="margin-bottom: 20px;">
@@ -231,7 +235,6 @@
                 </div>
             </div>
 
-            <!-- TAB B: ASSISTS PANEL -->
             <div id="assistsTab" class="tab-panel card">
                 <h3>Group Attack Log Analysis</h3>
                 <div class="checkbox-container">
@@ -260,15 +263,12 @@
             </div>
         </div>
 
-        <!-- Integrated Support Section Footer -->
         <div class="donation-footer">
-            <!-- Live Discord Invite Link -->
             <a class="footer-btn discord-style" target="_blank" href="https://discord.gg/rUhMNFCgPq">
                 <img src="https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0a6a49cf127bf92de1e2_icon_clyde_blurple_RGB.png" alt="Discord Link">
                 <span>Join Discord Bunker</span>
             </a>
 
-            <!-- Buy Me A Coffee Button -->
             <a class="footer-btn bmc-style" target="_blank" href="https://www.buymeacoffee.com/jonny752">
                 <img src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg" alt="Buy me a coffee">
                 <span>Buy me a coffee</span>
@@ -279,33 +279,75 @@
     <script>
         const ALLOWED_FACTION_ID = 11131;
         const FACTION_NAME_MATCH = "Infernum Perdition";
+        const LOCAL_STORAGE_KEY = "infernum_bunker_apikey";
 
         let isAuthenticated = false;
         let ourRoster = [];
         let enemyRoster = [];
         let compiledAssistsReport = [];
 
-        // --- AUTH ---
-        async function verifyFactionMember() {
+        // --- AUTOMATED PERSISTENCE LIFE CYCLE ON RUN ---
+        window.addEventListener('DOMContentLoaded', () => {
+            const preservedKey = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (preservedKey && preservedKey.length === 16) {
+                document.getElementById('apiKeyInput').value = preservedKey;
+                verifyFactionMember(preservedKey, true);
+            }
+        });
+
+        function handleManualAuth() {
             const apiKey = document.getElementById('apiKeyInput').value.trim();
+            verifyFactionMember(apiKey, false);
+        }
+
+        // --- AUTH ENGINE ---
+        async function verifyFactionMember(apiKey, isAutoLoad) {
             const authError = document.getElementById('authError');
-            if (apiKey.length !== 16) { authError.innerText = "❌ Keys must be exactly 16 characters."; return; }
+            if (apiKey.length !== 16) { 
+                authError.innerText = "❌ Keys must be exactly 16 characters."; 
+                if(isAutoLoad) terminateSession();
+                return; 
+            }
             
             try {
+                if(isAutoLoad) { authError.innerText = "🔄 Auto-authenticating saved token..."; }
+                
                 const response = await fetch(`https://api.torn.com/user/?selections=profile&key=${apiKey}`);
                 const data = await response.json();
-                if (data.error) { authError.innerText = `❌ Torn API: ${data.error.error}`; return; }
+                
+                if (data.error) { 
+                    authError.innerText = `❌ Torn API Error: ${data.error.error}`; 
+                    if(isAutoLoad) terminateSession();
+                    return; 
+                }
 
                 if (data.faction && data.faction.faction_id === ALLOWED_FACTION_ID) {
                     isAuthenticated = true;
-                    document.getElementById('welcomeBanner').innerText = `Logged into Infernum Command Vault: Welcome, ${data.name}`;
-                    document.getElementById('welcomeBanner').style.display = 'block';
+                    // Safely store key locally inside user's client sandbox
+                    localStorage.setItem(LOCAL_STORAGE_KEY, apiKey);
+                    
+                    document.getElementById('welcomeText').innerText = `Logged into Infernum Command Vault: Welcome, ${data.name}`;
+                    document.getElementById('welcomeBanner').style.display = 'flex';
                     document.getElementById('authCard').style.display = 'none';
                     document.getElementById('mainDashboard').style.display = 'block';
+                    authError.innerText = "";
                 } else {
                     authError.innerText = `❌ Verified faction does not match authorization rules.`;
+                    if(isAutoLoad) terminateSession();
                 }
-            } catch (err) { authError.innerText = "❌ Security network handshake error."; }
+            } catch (err) { 
+                authError.innerText = "❌ Security network handshake error."; 
+            }
+        }
+
+        function terminateSession() {
+            localStorage.removeItem(LOCAL_STORAGE_KEY);
+            isAuthenticated = false;
+            document.getElementById('apiKeyInput').value = "";
+            document.getElementById('welcomeBanner').style.display = 'none';
+            document.getElementById('mainDashboard').style.display = 'none';
+            document.getElementById('authCard').style.display = 'block';
+            document.getElementById('authError').innerText = "Session cleared. Key removed from browser cache.";
         }
 
         // --- TAB NAVIGATION ENGINE ---
@@ -391,189 +433,4 @@
             }
             if (attackFile) {
                 readersPending++;
-                let r = new FileReader();
-                r.onload = (e) => { processAttackCSVData(e.target.result); decrementPending(); };
-                r.readAsText(attackFile);
-            }
-
-            if (readersPending === 0) {
-                alert("Please select at least one tracking file to load updates.");
-                statusDiv.innerText = "";
-            }
-
-            function decrementPending() {
-                readersPending--;
-                if (readersPending === 0) {
-                    statusDiv.innerText = "⚡ Systems operational. All components synced.";
-                }
-            }
-        }
-
-        // --- MATCHMAKER CORE ---
-        function populateAttackerDropdown() {
-            const select = document.getElementById('attackerSelect');
-            select.innerHTML = '<option value="">-- Choose an Infernum Player --</option>';
-            ourRoster.sort((a,b) => a.name.localeCompare(b.name)).forEach(p => {
-                let opt = document.createElement('option');
-                opt.value = p.name;
-                opt.textContent = `${p.name} (Stats: ${p.displayBs})`;
-                select.appendChild(opt);
-            });
-        }
-
-        function generateTargetList() {
-            const selectedName = document.getElementById('attackerSelect').value;
-            const tbody = document.getElementById('targetTableBody');
-            const summaryDiv = document.getElementById('attackerStatsSummary');
-            
-            if (!selectedName || !enemyRoster.length) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Select active attacker or confirm enemy roster initialization.</td></tr>';
-                return;
-            }
-
-            const attacker = ourRoster.find(p => p.name === selectedName);
-            summaryDiv.innerHTML = `Attacker Configuration Profile: Level ${attacker.lvl} | Base Stats: ${attacker.displayBs}`;
-            tbody.innerHTML = "";
-
-            let matches = [];
-            enemyRoster.forEach(tgt => {
-                if (attacker.rawBs === 0 || tgt.rawBs === 0) return;
-                let ratio = tgt.rawBs / attacker.rawBs;
-                
-                if (ratio >= 0.01 && ratio <= 1.25) {
-                    let rating = ratio <= 0.4 ? "Green (Safe Farm)" : (ratio <= 0.9 ? "Orange (Ideal Fair Fight)" : "Challenging (Needs Boost/Temps)");
-                    let cls = ratio <= 0.4 ? "badge-safe" : "badge-optimal";
-                    matches.push({ tgt, ratio, rating, cls });
-                }
-            });
-
-            matches.sort((a,b) => b.ratio - a.ratio);
-
-            if (!matches.length) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ff4444;">No targets within calibrated safe stats boundaries.</td></tr>';
-                return;
-            }
-
-            matches.forEach(m => {
-                tbody.innerHTML += `<tr>
-                    <td><strong>${m.tgt.name}</strong></td>
-                    <td>${m.tgt.lvl}</td>
-                    <td>${m.tgt.displayBs}</td>
-                    <td><span class="badge ${m.cls}">${m.rating}</span></td>
-                    <td><a href="https://www.torn.com/loader.php?sid=attack&user2ID=${m.tgt.id}" target="_blank">⚔️ Attack</a></td>
-                </tr>`;
-            });
-        }
-
-        // --- GROUP ATTACK & ASSISTS CORE ---
-        function processAttackCSVData(csvText) {
-            const rows = parseCSV(csvText);
-            if (rows.length < 2) return;
-
-            const headers = rows[0];
-            const getIndex = (n) => headers.indexOf(n);
-            const idxFaction = getIndex('attacker_factionname');
-            const idxResult = getIndex('result');
-            const idxAttacker = getIndex('attacker_name');
-            const idxDefender = getIndex('defender_name');
-            const idxTS = getIndex('timestamp_started');
-            const idxRespect = getIndex('respect_gain');
-
-            const finishingMoves = ['Attacked', 'Hospitalized', 'Mugged'];
-            let sessions = {};
-
-            for (let i = 1; i < rows.length; i++) {
-                let row = rows[i];
-                if (row[idxFaction] === FACTION_NAME_MATCH && finishingMoves.includes(row[idxResult])) {
-                    sessions[i] = { finisher: row, components: [row] };
-                }
-            }
-
-            for (let i = 1; i < rows.length; i++) {
-                let row = rows[i];
-                if (row[idxFaction] === FACTION_NAME_MATCH && ['Assist', 'Lost'].includes(row[idxResult])) {
-                    let defender = row[idxDefender];
-                    let matchKey = null; let minDistance = Infinity;
-                    for (let fIdx in sessions) {
-                        if (sessions[fIdx].finisher[idxDefender] === defender) {
-                            let dist = Math.abs(i - parseInt(fIdx));
-                            if (dist < minDistance) { minDistance = dist; matchKey = fIdx; }
-                        }
-                    }
-                    if (matchKey) sessions[matchKey].components.push(row);
-                }
-            }
-
-            compiledAssistsReport = [];
-            for (let fIdx in sessions) {
-                let s = sessions[fIdx];
-                let fRow = s.finisher;
-                let sorted = [...s.components].sort((a,b) => parseInt(a[idxTS]) - parseInt(b[idxTS]));
-                
-                let initiator = sorted[0][idxAttacker];
-                let finisher = fRow[idxAttacker];
-                let defender = fRow[idxDefender];
-                let respect = parseFloat(fRow[idxRespect] || 0).toFixed(2);
-
-                let d = new Date(parseInt(fRow[idxTS]) * 1000);
-                let timeStr = `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')} ${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`;
-
-                let assSet = new Set();
-                s.components.forEach(r => {
-                    if (r[idxResult] === 'Assist' && r[idxAttacker] !== finisher) assSet.add(r[idxAttacker]);
-                });
-                let assistantsArr = Array.from(assSet).sort();
-                let assistantsStr = assistantsArr.length ? assistantsArr.join(", ") : "None";
-
-                compiledAssistsReport.push({ timeStr, defender, initiator, finisher, assistantsStr, respect, isGroup: assistantsStr !== "None", unix: parseInt(fRow[idxTS]) });
-            }
-
-            compiledAssistsReport.sort((a,b) => b.unix - a.unix);
-            document.getElementById('downloadBtn').style.display = 'inline-block';
-            refreshAssistsDisplay();
-        }
-
-        function refreshAssistsDisplay() {
-            const tbody = document.getElementById('assistsTableBody');
-            const showGroupOnly = document.getElementById('filterNone').checked;
-            tbody.innerHTML = "";
-
-            let subset = compiledAssistsReport;
-            if (showGroupOnly) subset = subset.filter(r => r.isGroup);
-
-            if (!subset.length) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">No records found matching filters.</td></tr>';
-                return;
-            }
-
-            subset.slice(0, 50).forEach(r => {
-                tbody.innerHTML += `<tr>
-                    <td>${r.timeStr}</td>
-                    <td><strong>${r.defender}</strong></td>
-                    <td>${r.initiator}</td>
-                    <td>${r.finisher}</td>
-                    <td>${r.assistantsStr}</td>
-                    <td class="respect-val">${r.respect}</td>
-                </tr>`;
-            });
-        }
-
-        function downloadAssistsCSV() {
-            if (!compiledAssistsReport.length) return;
-            let csv = "Time (TCT),Target,Initiator,Finisher,Assistants,Respect Gained\n";
-            compiledAssistsReport.forEach(r => {
-                csv += `"${r.timeStr}","${r.defender}","${r.initiator}","${r.finisher}","${r.assistantsStr}",${r.respect}\n`;
-            });
-            const b = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(b);
-            link.setAttribute("download", "infernum_grouped_assists.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-    </script>
-</body>
-</html>
-
-```
+                let
