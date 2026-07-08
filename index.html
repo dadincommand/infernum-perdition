@@ -84,10 +84,12 @@
         button {
             background-color: var(--primary); color: #fff; border: none; padding: 12px 24px;
             border-radius: 6px; font-weight: 700; text-transform: uppercase; cursor: pointer; transition: 0.2s;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
         }
         button:hover { background-color: var(--primary-hover); }
         .btn-success { background-color: var(--success); }
         .btn-success:hover { background-color: var(--success-hover); }
+        button:disabled { background-color: #444; color: #888; cursor: not-allowed; }
 
         .checkbox-container { margin: 15px 0; display: flex; align-items: center; gap: 10px; }
         .checkbox-container input { width: 18px; height: 18px; accent-color: var(--primary); }
@@ -106,6 +108,12 @@
         a { color: #5194ff; text-decoration: none; }
         a:hover { text-decoration: underline; }
         .status { margin-top: 15px; color: #00ffcc; font-weight: 600; }
+
+        /* Status formatting states */
+        .tgt-okay { color: #2bba5c; font-weight: bold; }
+        .tgt-hosp { color: #ff4444; }
+        .tgt-travel { color: #5194ff; font-style: italic; }
+        .tgt-jail { color: #ffb700; }
 
         /* --- Community Footer Rows --- */
         .donation-footer {
@@ -215,10 +223,13 @@
             <!-- TAB A: MATCHMAKER PANEL -->
             <div id="matchmakerTab" class="tab-panel active card">
                 <h3>Select Attacker to Fetch Matchmaking Solutions</h3>
-                <div style="margin-bottom: 20px;">
-                    <select id="attackerSelect" onchange="generateTargetList()">
-                        <option value="">-- Choose an Infernum Player --</option>
-                    </select>
+                <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 250px;">
+                        <select id="attackerSelect" onchange="generateTargetList()">
+                            <option value="">-- Choose an Infernum Player --</option>
+                        </select>
+                    </div>
+                    <button id="liveStatusBtn" class="btn-success" style="display: none;" onclick="fetchLiveStatuses()">📡 Check Live Intel States</button>
                 </div>
                 <div id="attackerStatsSummary" style="margin-bottom: 15px; color:#fff; font-weight:bold;"></div>
                 
@@ -230,11 +241,12 @@
                                 <th>Level</th>
                                 <th>Estimated Stats</th>
                                 <th>Threat Metric</th>
+                                <th>Live Status</th>
                                 <th>Operational Window</th>
                             </tr>
                         </thead>
                         <tbody id="targetTableBody">
-                            <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Please upload roster stat files and click process to begin calculation modules.</td></tr>
+                            <tr><td colspan="6" style="text-align:center; color: var(--text-muted);">Please upload roster stat files and click process to begin calculation modules.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -294,6 +306,7 @@
         let ourRoster = [];
         let enemyRoster = [];
         let compiledAssistsReport = [];
+        let currentDisplayedTargets = [];
 
         // --- AUTOMATED PERSISTENCE LIFE CYCLE ON RUN ---
         window.addEventListener('DOMContentLoaded', () => {
@@ -490,15 +503,18 @@
             const selectedName = document.getElementById('attackerSelect').value;
             const tbody = document.getElementById('targetTableBody');
             const summaryDiv = document.getElementById('attackerStatsSummary');
+            const statusBtn = document.getElementById('liveStatusBtn');
             
             if (!selectedName || !enemyRoster.length) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Select active attacker or confirm enemy roster initialization.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">Select active attacker or confirm enemy roster initialization.</td></tr>';
+                statusBtn.style.display = 'none';
                 return;
             }
 
             const attacker = ourRoster.find(p => p.name === selectedName);
             summaryDiv.innerHTML = `Attacker Configuration Profile: Level ${attacker.lvl} | Base Stats: ${attacker.displayBs}`;
             tbody.innerHTML = "";
+            currentDisplayedTargets = [];
 
             let matches = [];
             enemyRoster.forEach(tgt => {
@@ -515,19 +531,85 @@
             matches.sort((a,b) => b.ratio - a.ratio);
 
             if (!matches.length) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ff4444;">No targets within calibrated safe stats boundaries.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#ff4444;">No targets within calibrated safe stats boundaries.</td></tr>';
+                statusBtn.style.display = 'none';
                 return;
             }
 
+            statusBtn.style.display = 'inline-flex';
+
             matches.forEach(m => {
-                tbody.innerHTML += `<tr>
-                    <td><strong>${m.tgt.name}</strong></td>
+                currentDisplayedTargets.push(m.tgt.id);
+                tbody.innerHTML += `<tr id="target-row-${m.tgt.id}">
+                    <td><strong>${m.tgt.name}</strong> <span style="color:var(--text-muted); font-size:0.8rem;">[${m.tgt.id}]</span></td>
                     <td>${m.tgt.lvl}</td>
                     <td>${m.tgt.displayBs}</td>
                     <td><span class="badge ${m.cls}">${m.rating}</span></td>
+                    <td id="status-cell-${m.tgt.id}" style="color: var(--text-muted); font-weight: 500;">Unchecked</td>
                     <td><a href="https://www.torn.com/loader.php?sid=attack&user2ID=${m.tgt.id}" target="_blank">⚔️ Attack</a></td>
                 </tr>`;
             });
+        }
+
+        // --- LIVE INTEL STATE ENGINE (NEW) ---
+        async function fetchLiveStatuses() {
+            const apiKey = localStorage.getItem(LOCAL_STORAGE_KEY);
+            const statusBtn = document.getElementById('liveStatusBtn');
+            
+            if (!apiKey || currentDisplayedTargets.length === 0) return;
+
+            statusBtn.disabled = true;
+            statusBtn.innerText = "📡 Scanning Matrix...";
+
+            // To save API rules, limit updates up to the first 35 matching items visible 
+            const executionBatch = currentDisplayedTargets.slice(0, 35);
+
+            for (let id of executionBatch) {
+                const cell = document.getElementById(`status-cell-${id}`);
+                if (cell) cell.innerText = "Polling...";
+                
+                try {
+                    const res = await fetch(`https://api.torn.com/user/${id}?selections=basic&key=${apiKey}&comment=InfernumHQ`);
+                    const data = await res.json();
+                    
+                    if (data.status) {
+                        let statusText = "";
+                        let statusClass = "tgt-okay";
+                        
+                        const state = data.status.state;
+                        const details = data.status.description;
+                        const dynamicTime = data.status.until; // Unix timestamp window
+
+                        if (state === "Hospital") {
+                            statusClass = "tgt-hosp";
+                            let remainingSecs = dynamicTime - Math.floor(Date.now() / 1000);
+                            let mins = Math.max(0, Math.ceil(remainingSecs / 60));
+                            statusText = `In Hosp (${mins}m)`;
+                        } else if (state === "Traveling") {
+                            statusClass = "tgt-travel";
+                            statusText = "Traveling";
+                        } else if (state === "Jail") {
+                            statusClass = "tgt-jail";
+                            statusText = "In Jail";
+                        } else {
+                            statusText = "Okay";
+                        }
+                        
+                        if (cell) {
+                            cell.className = statusClass;
+                            cell.innerText = statusText;
+                            cell.title = details; // Hover description overlay
+                        }
+                    }
+                } catch (e) {
+                    if (cell) cell.innerText = "Error";
+                }
+                // Small stagger to prevent rapid concurrency browser drops
+                await new Promise(resolve => setTimeout(resolve, 150));
+            }
+
+            statusBtn.disabled = false;
+            statusBtn.innerText = "📡 Check Live Intel States";
         }
 
         // --- GROUP ATTACK & ASSISTS CORE ---
