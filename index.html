@@ -112,10 +112,16 @@
         a:hover { text-decoration: underline; }
         .status { margin-top: 15px; color: #00ffcc; font-weight: 600; }
 
+        .tgt-container { display: flex; flex-direction: column; gap: 4px; }
         .tgt-okay { color: #2bba5c; font-weight: bold; }
-        .tgt-hosp { color: #ff4444; }
+        .tgt-hosp { color: #ff4444; font-weight: bold; }
         .tgt-travel { color: #5194ff; font-style: italic; }
         .tgt-jail { color: #ffb700; }
+        
+        .activity-indicator { font-size: 0.75rem; font-weight: bold; text-transform: uppercase; padding: 2px 5px; border-radius: 3px; display: inline-block; width: max-content; }
+        .act-online { background: rgba(43, 186, 92, 0.15); color: #2bba5c; border: 1px solid rgba(43, 186, 92, 0.3); }
+        .act-idle { background: rgba(255, 183, 0, 0.15); color: #ffb700; border: 1px solid rgba(255, 183, 0, 0.3); }
+        .act-offline { background: rgba(255, 255, 255, 0.05); color: #888888; border: 1px solid rgba(255, 255, 255, 0.1); }
 
         .donation-footer {
             text-align: center; margin-top: 40px; padding-top: 25px;
@@ -208,7 +214,7 @@
                                 <th>Level</th>
                                 <th>Estimated Stats</th>
                                 <th>Threat Metric</th>
-                                <th>Live Status</th>
+                                <th>Live Status & Activity</th>
                                 <th>Operational Window</th>
                             </tr>
                         </thead>
@@ -402,6 +408,8 @@
         let enemyRoster = [];
         let compiledAssistsReport = [];
         let currentDisplayedTargets = [];
+        let hospitalTimers = {};
+        let activeCountdownInterval = null;
 
         window.addEventListener('DOMContentLoaded', () => {
             const preservedKey = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -413,6 +421,7 @@
                 ourRoster = parseFactionHTML(INFERNUM_ROSTER_DATA);
                 populateAttackerDropdown();
             }
+            startGlobalTimerThread();
         });
 
         function handleManualAuth() {
@@ -458,7 +467,7 @@
             } catch (err) { 
                 authBtn.disabled = false;
                 authError.style.color = "#ff4444";
-                authError.innerHTML = `❌ Connection Error or Browser Sandbox Blocked API calls directly. Try using terminal commands or web deployments.`;
+                authError.innerHTML = `❌ Connection Error or Browser Sandbox Blocked API calls directly.`;
             }
         }
 
@@ -600,6 +609,7 @@
             summaryDiv.innerHTML = `Attacker Configuration Profile: Level ${attacker.lvl} | Base Stats: ${attacker.displayBs}`;
             tbody.innerHTML = "";
             currentDisplayedTargets = [];
+            hospitalTimers = {};
 
             let matches = [];
             enemyRoster.forEach(tgt => {
@@ -627,7 +637,12 @@
                     <td>${m.tgt.lvl}</td>
                     <td>${m.tgt.displayBs}</td>
                     <td><span class="badge ${m.cls}">${m.rating}</span></td>
-                    <td id="status-cell-${m.tgt.id}" style="color: var(--text-muted); font-weight: 500;">Unchecked</td>
+                    <td>
+                        <div class="tgt-container" id="status-container-${m.tgt.id}">
+                            <span id="status-cell-${m.tgt.id}" style="color: var(--text-muted); font-weight: 500;">Unchecked</span>
+                            <span id="activity-cell-${m.tgt.id}"></span>
+                        </div>
+                    </td>
                     <td><a href="https://www.torn.com/loader.php?sid=attack&user2ID=${m.tgt.id}" target="_blank">⚔️ Attack</a></td>
                 </tr>`;
             });
@@ -640,34 +655,80 @@
 
             statusBtn.disabled = true;
             statusBtn.innerText = "📡 Scanning Matrix...";
-            const executionBatch = currentDisplayedTargets.slice(0, 35);
+            const executionBatch = currentDisplayedTargets.slice(0, 45);
 
             for (let id of executionBatch) {
                 const cell = document.getElementById(`status-cell-${id}`);
+                const actCell = document.getElementById(`activity-cell-${id}`);
                 if (cell) cell.innerText = "Polling...";
                 try {
-                    const res = await fetch(`https://api.torn.com/user/${id}?selections=basic&key=${apiKey}&comment=InfernumHQ`);
+                    const res = await fetch(`https://api.torn.com/user/${id}?selections=basic,profile&key=${apiKey}&comment=InfernumHQ`);
                     const data = await res.json();
+                    
                     if (data.status) {
                         let statusText = ""; let statusClass = "tgt-okay";
                         const state = data.status.state;
-                        const dynamicTime = data.status.until;
+                        const untilTimestamp = data.status.until;
 
                         if (state === "Hospital") {
                             statusClass = "tgt-hosp";
-                            let remainingSecs = dynamicTime - Math.floor(Date.now() / 1000);
-                            statusText = `In Hosp (${Math.max(0, Math.ceil(remainingSecs / 60))}m)`;
-                        } else if (state === "Traveling") { statusClass = "tgt-travel"; statusText = "Traveling"; }
-                        else if (state === "Jail") { statusClass = "tgt-jail"; statusText = "In Jail"; }
-                        else statusText = "Okay";
+                            hospitalTimers[id] = untilTimestamp;
+                            statusText = formatCountdownTime(untilTimestamp);
+                        } else {
+                            if (hospitalTimers[id]) delete hospitalTimers[id];
+                            if (state === "Traveling") { statusClass = "tgt-travel"; statusText = "Traveling"; }
+                            else if (state === "Jail") { statusClass = "tgt-jail"; statusText = "In Jail"; }
+                            else { statusText = "Okay"; }
+                        }
                         
                         if (cell) { cell.className = statusClass; cell.innerText = statusText; }
                     }
+
+                    if (data.last_action && data.last_action.status) {
+                        let act = data.last_action.status.toLowerCase();
+                        let actClass = "act-offline";
+                        if (act === "online") actClass = "act-online";
+                        else if (act === "idle") actClass = "act-idle";
+                        
+                        if (actCell) {
+                            actCell.className = `activity-indicator ${actClass}`;
+                            actCell.innerText = act;
+                        }
+                    }
                 } catch (e) { if (cell) cell.innerText = "Error"; }
-                await new Promise(resolve => setTimeout(resolve, 150));
+                await new Promise(resolve => setTimeout(resolve, 180));
             }
             statusBtn.disabled = false;
             statusBtn.innerText = "📡 Check Live Intel States";
+        }
+
+        function formatCountdownTime(ts) {
+            let diff = ts - Math.floor(Date.now() / 1000);
+            if (diff <= 0) return "Okay";
+            let hrs = Math.floor(diff / 3600);
+            let mins = Math.floor((diff % 3600) / 60);
+            let secs = diff % 60;
+            let str = "";
+            if (hrs > 0) str += hrs + ":";
+            str += String(mins).padStart(2, '0') + ":" + String(secs).padStart(2, '0');
+            return `Hosp (${str})`;
+        }
+
+        function startGlobalTimerThread() {
+            if (activeCountdownInterval) clearInterval(activeCountdownInterval);
+            activeCountdownInterval = setInterval(() => {
+                Object.keys(hospitalTimers).forEach(id => {
+                    const cell = document.getElementById(`status-cell-${id}`);
+                    if (!cell) return;
+                    let ts = hospitalTimers[id];
+                    let currentStr = formatCountdownTime(ts);
+                    cell.innerText = currentStr;
+                    if (currentStr === "Okay") {
+                        cell.className = "tgt-okay";
+                        delete hospitalTimers[id];
+                    }
+                });
+            }, 1000);
         }
 
         // --- 📋 TAB B: TARGET ASSIGNMENT ALGORITHM 📋 ---
@@ -687,26 +748,21 @@
             container.style.display = 'block';
             tableBody.innerHTML = "";
 
-            // Create assignment profile structure
             let assignments = {};
-            // Sort our players from strongest down to distribute cleanly
             let sortedUs = [...ourRoster].sort((a,b) => b.rawBs - a.rawBs);
             let sortedThem = [...enemyRoster].sort((a,b) => b.rawBs - a.rawBs);
 
             sortedUs.forEach(p => { assignments[p.name] = { player: p, targets: [] }; });
 
-            // Balance assignment algorithm loop
             sortedThem.forEach(target => {
                 let optimalAttacker = null;
-                let bestMatchScore = Infinity; // Find best relative match spacing
+                let bestMatchScore = Infinity;
 
                 sortedUs.forEach(attacker => {
                     if (attacker.rawBs === 0 || target.rawBs === 0) return;
                     let ratio = target.rawBs / attacker.rawBs;
 
-                    // Fair combat bracket window (Target is <= 110% of attacker's stats)
                     if (ratio >= 0.05 && ratio <= 1.10) {
-                        // Scoring metric: balance ideal combat ratio mixed with current load size
                         let currentLoadCount = assignments[attacker.name].targets.length;
                         let balanceScore = Math.abs(ratio - 0.5) + (currentLoadCount * 0.25);
 
@@ -717,7 +773,6 @@
                     }
                 });
 
-                // Fallback catch-all if target slips outside the ideal brackets
                 if (!optimalAttacker) {
                     sortedUs.forEach(attacker => {
                         if (attacker.rawBs === 0) return;
@@ -735,7 +790,6 @@
                 }
             });
 
-            // Render Output Table rows and build Bulletin String
             let markdownString = "🔥 INFERNUM PERDITION - WAR TARGET ASSIGNMENTS 🔥\n\n";
 
             sortedUs.forEach(p => {
