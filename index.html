@@ -137,10 +137,6 @@
             box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
             transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-        .footer-btn:hover {
-            transform: translateY(-2px);
-            text-decoration: none;
-        }
         .footer-btn img {
             height: 20px;
             margin-right: 10px;
@@ -202,11 +198,11 @@
                         <input type="file" id="attackLogFile" accept=".csv">
                     </div>
                     <div class="upload-box">
-                        <label>Optional: Infernum Roster Stats (.html)</label>
+                        <label>Infernum Roster Stats (Pre-loaded / Optional Override)</label>
                         <input type="file" id="ourFactionFile" accept=".html,.htm">
                     </div>
                     <div class="upload-box">
-                        <label>Optional: Enemy Roster Stats (.html)</label>
+                        <label>Required for Matchmaking: Enemy Faction Stats (.html)</label>
                         <input type="file" id="enemyFactionFile" accept=".html,.htm">
                     </div>
                 </div>
@@ -246,7 +242,7 @@
                             </tr>
                         </thead>
                         <tbody id="targetTableBody">
-                            <tr><td colspan="6" style="text-align:center; color: var(--text-muted);">Please upload roster stat files and click process to begin calculation modules.</td></tr>
+                            <tr><td colspan="6" style="text-align:center; color: var(--text-muted);">Please upload the enemy roster stat file and click process to begin.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -298,6 +294,103 @@
     </div>
 
     <script>
+        // --- 💾 IMMUTABLE EMBEDDED INFERNUM DATA matrix 💾 ---
+        const INFERNUM_ROSTER_DATA = `
+<table>
+<tbody>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=661280">ReggieKray [661280]</a></td><td>100</td><td>6.1b</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=1600265">Demon- [1600265]</a></td><td>100</td><td>5.5b</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2459793">Hauzan2112 [2459793]</a></td><td>99</td><td>3.5b</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2550939">Granite_Cutter [2550939]</a></td><td>99</td><td>3.3b</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2636589">BigManBilly [2636589]</a></td><td>100</td><td>3.2b</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=1991656">Tanithil [1991656]</a></td><td>65</td><td>3b</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2788822">strusos [2788822]</a></td><td>93</td><td>2.6b</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2561793">ROD56 [2561793]</a></td><td>100</td><td>2.3b</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2486349">LadyGary [2486349]</a></td><td>97</td><td>2.1b</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2758982">Christicer [2758982]</a></td><td>66</td><td>1.9b</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=420852">Appointed-Munky [420852]</a></td><td>75</td><td>1.8b</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3008047">RealTeel [3008047]</a></td><td>92</td><td>1.5b</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2770681">Swoje [2770681]</a></td><td>85</td><td>1.4b</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2349709">EvilKidsMama [2349709]</a></td><td>100</td><td>1.3b</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2282865">Mary_White [2282865]</a></td><td>76</td><td>714.7m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2886332">VexingPaperclip [2886332]</a></td><td>70</td><td>637.7m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2744608">Communist11 [2744608]</a></td><td>44</td><td>623.5m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2685046">R6Monkey [2685046]</a></td><td>88</td><td>610.3m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2837425">Dirtyninja [2837425]</a></td><td>79</td><td>500.4m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2667716">Macula [2667716]</a></td><td>74</td><td>438.8m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2675843">TravellinJack [2675843]</a></td><td>83</td><td>367.9m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2898555">SmiledDread7 [2898555]</a></td><td>40</td><td>235.3m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3716077">Uzumakikage [3716077]</a></td><td>86</td><td>214.9m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2603744">Shist [2603744]</a></td><td>20</td><td>156.3m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2581562">Joniyh [2581562]</a></td><td>69</td><td>152.2m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2741267">DJCandyman [2741267]</a></td><td>68</td><td>127.4m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3149511">LilMamaTeel [3149511]</a></td><td>73</td><td>91.7m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3426201">Lepizza [3426201]</a></td><td>70</td><td>32.4m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3133978">3nola [3133978]</a></td><td>73</td><td>19.5m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2339767">syollrdecean [2339767]</a></td><td>50</td><td>2.6m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3444222">Dodgyr [3444222]</a></td><td>25</td><td>1.8m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=1867071">LaFlame [1867071]</a></td><td>53</td><td>1.8m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3675905">Jabba752 [3675905]</a></td><td>59</td><td>1.7m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3981071">Dream33 [3981071]</a></td><td>45</td><td>1.6m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3883389">Nyxiie [3883389]</a></td><td>25</td><td>1.6m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3866555">Toast3030 [3866555]</a></td><td>48</td><td>1.5m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3995735">The-Flipper [3995735]</a></td><td>52</td><td>1.4m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3763327">uri-el [3763327]</a></td><td>41</td><td>1.2m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2670367">m1cha3lwithab [2670367]</a></td><td>52</td><td>1.2m</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3842678">Deumus [3842678]</a></td><td>40</td><td>955.4k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3864507">-----PAIN----- [3864507]</a></td><td>64</td><td>875.5k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3523983">God1 [3523983]</a></td><td>45</td><td>859k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4175014">GlizzyMcGuire [4175014]</a></td><td>40</td><td>841.4k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4111682">Klam44 [4111682]</a></td><td>44</td><td>782.3k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3686147">Morrbo [3686147]</a></td><td>45</td><td>705.4k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3872178">908RyanG [3872178]</a></td><td>57</td><td>702.2k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2356351">Jusdo [2356351]</a></td><td>38</td><td>702.1k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4178928">El-Diabloo [4178928]</a></td><td>41</td><td>631.5k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4014042">Noctorious [4014042]</a></td><td>49</td><td>462k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4289053">Jyno [4289053]</a></td><td>30</td><td>391.7k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4030999">Rhazziel [4030999]</a></td><td>43</td><td>342.1k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3479200">xXMysticRoseXx [3479200]</a></td><td>35</td><td>339.2k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4228616">ibo36 [4228616]</a></td><td>33</td><td>325.3k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4174800">Alkohl [4174800]</a></td><td>34</td><td>316.5k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3985352">an1as22005 [3985352]</a></td><td>45</td><td>313k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3449067">nigelng [3449067]</a></td><td>40</td><td>307.8k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4012624">lizzysucks [4012624]</a></td><td>42</td><td>293.2k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3331807">Honourablely [3331807]</a></td><td>40</td><td>290.5k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3977399">COLT45IVE [3977399]</a></td><td>35</td><td>279.6k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3457733">kingwilk [3457733]</a></td><td>45</td><td>272.2k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=3943108">Iloveashleyb [3943108]</a></td><td>38</td><td>262.5k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4038363">NYXnNIGHT [4038363]</a></td><td>35</td><td>259.2k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4049161">Erique [4049161]</a></td><td>30</td><td>252.5k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4024408">SofijaSofi [4024408]</a></td><td>44</td><td>234.6k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4013631">Kalasarikannit [4013631]</a></td><td>45</td><td>203.8k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4069130">KingZayn [4069130]</a></td><td>30</td><td>188.8k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4310021">BobTheDealerr [4310021]</a></td><td>15</td><td>144.7k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4075978">Furawazuu [4075978]</a></td><td>31</td><td>130k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4159480">JSTorrente [4159480]</a></td><td>26</td><td>128.5k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4012656">nicomasters [4012656]</a></td><td>41</td><td>128.3k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4141564">VladimirSylado [4141564]</a></td><td>35</td><td>126.5k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4038974">Alays_Hunter [4038974]</a></td><td>40</td><td>121.3k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4213476">Eiz [4213476]</a></td><td>20</td><td>108k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4018961">KuroZ [4018961]</a></td><td>25</td><td>103.4k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4043322">feastd [4043322]</a></td><td>39</td><td>96.3k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4060561">Bradley_01 [4060561]</a></td><td>30</td><td>87.1k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4168221">NetAndYoohoo [4168221]</a></td><td>30</td><td>79k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4295459">-Bilbo- [4295459]</a></td><td>22</td><td>65.6k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4155274">Zereey [4155274]</a></td><td>32</td><td>64.1k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4151509">Ellira [4151509]</a></td><td>23</td><td>53.8k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=2713125">AkumaNoKogo [2713125]</a></td><td>23</td><td>48.3k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4279921">NaoMeee [4279921]</a></td><td>21</td><td>34.6k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4299237">jublobiggins6 [4299237]</a></td><td>17</td><td>28.5k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4309850">-8BALL- [4309850]</a></td><td>18</td><td>24.5k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4151654">Eaglewing045 [4151654]</a></td><td>25</td><td>22.6k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4305064">bigfoot48 [4305064]</a></td><td>23</td><td>22.2k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4067276">xXTabloXx [4067276]</a></td><td>15</td><td>18.5k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4089275">EolynVesper [4089275]</a></td><td>25</td><td>14.3k</td></tr>
+<tr><td><a href="https://www.torn.com/page.php?sid=attack&user2ID=4373564">Valurette [4373564]</a></td><td>15</td><td>2500</td></tr>
+</tbody>
+</table>
+        `;
+
         const ALLOWED_FACTION_ID = 11131;
         const FACTION_NAME_MATCH = "Infernum Perdition";
         const LOCAL_STORAGE_KEY = "infernum_bunker_apikey";
@@ -314,6 +407,12 @@
             if (preservedKey && preservedKey.length === 16) {
                 document.getElementById('apiKeyInput').value = preservedKey;
                 verifyFactionMember(preservedKey, true);
+            }
+            
+            // Auto-load built-in roster immediately on launch
+            if (INFERNUM_ROSTER_DATA.trim()) {
+                ourRoster = parseFactionHTML(INFERNUM_ROSTER_DATA);
+                populateAttackerDropdown();
             }
         });
 
@@ -407,7 +506,7 @@
         function parseFactionHTML(htmlText) {
             const parser = new DOMParser();
             const doc = parser.parseFromString(htmlText, 'text/html');
-            const rows = doc.querySelectorAll('table tbody tr');
+            const rows = doc.querySelectorAll('tr');
             let data = [];
             rows.forEach(row => {
                 const cells = row.querySelectorAll('td');
@@ -421,6 +520,8 @@
                     }
                     let lvl = parseInt(cells[1].textContent.trim()) || 1;
                     let displayBs = cells[2].textContent.trim();
+                    // Basic cleanup logic if the label states 'Under 2,500'
+                    if (displayBs.toLowerCase().includes("under")) displayBs = "2.5k";
                     let rawBs = standardiseBattleStats(displayBs);
                     if (name) data.push({ name, id, lvl, rawBs, displayBs });
                 }
@@ -460,7 +561,11 @@
                 let r = new FileReader();
                 r.onload = (e) => { ourRoster = parseFactionHTML(e.target.result); populateAttackerDropdown(); decrementPending(); };
                 r.readAsText(ourFile);
+            } else if (!ourRoster.length && INFERNUM_ROSTER_DATA.trim()) {
+                ourRoster = parseFactionHTML(INFERNUM_ROSTER_DATA);
+                populateAttackerDropdown();
             }
+
             if (enemyFile) {
                 readersPending++;
                 let r = new FileReader();
@@ -474,9 +579,15 @@
                 r.readAsText(attackFile);
             }
 
-            if (readersPending === 0) {
-                alert("Please select at least one tracking file to load updates.");
-                statusDiv.innerText = "";
+            if (readersPending === 0 && !enemyFile && !attackFile) {
+                // If everything is blank but we have internal configurations, instantly rerun target array mapping
+                generateTargetList();
+                statusDiv.innerText = "⚡ System loaded using default pre-compiled parameters.";
+                return;
+            } else if (readersPending === 0) {
+                generateTargetList();
+                statusDiv.innerText = "⚡ Systems operational. Preloaded elements active.";
+                return;
             }
 
             function decrementPending() {
@@ -551,7 +662,7 @@
             });
         }
 
-        // --- LIVE INTEL STATE ENGINE (NEW) ---
+        // --- LIVE INTEL STATE ENGINE ---
         async function fetchLiveStatuses() {
             const apiKey = localStorage.getItem(LOCAL_STORAGE_KEY);
             const statusBtn = document.getElementById('liveStatusBtn');
@@ -561,7 +672,6 @@
             statusBtn.disabled = true;
             statusBtn.innerText = "📡 Scanning Matrix...";
 
-            // To save API rules, limit updates up to the first 35 matching items visible 
             const executionBatch = currentDisplayedTargets.slice(0, 35);
 
             for (let id of executionBatch) {
@@ -578,7 +688,7 @@
                         
                         const state = data.status.state;
                         const details = data.status.description;
-                        const dynamicTime = data.status.until; // Unix timestamp window
+                        const dynamicTime = data.status.until;
 
                         if (state === "Hospital") {
                             statusClass = "tgt-hosp";
@@ -598,13 +708,12 @@
                         if (cell) {
                             cell.className = statusClass;
                             cell.innerText = statusText;
-                            cell.title = details; // Hover description overlay
+                            cell.title = details;
                         }
                     }
                 } catch (e) {
                     if (cell) cell.innerText = "Error";
                 }
-                // Small stagger to prevent rapid concurrency browser drops
                 await new Promise(resolve => setTimeout(resolve, 150));
             }
 
