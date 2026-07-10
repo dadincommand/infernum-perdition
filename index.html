@@ -37,12 +37,13 @@
         .welcome-banner {
             background: linear-gradient(135deg, #1f1212 0%, #290a0a 100%);
             border: 1px solid var(--primary); color: #fff; padding: 15px;
-            border-radius: 6px; text-align: center; margin-bottom: 25px; font-weight: bold;
-            display: flex; justify-content: space-between; align-items: center;
+            border-radius: 6px; margin-bottom: 25px; font-weight: bold;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
         }
+        .user-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .logout-btn {
             background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-            padding: 4px 10px; font-size: 0.8rem; border-radius: 4px; color: #fff; cursor: pointer;
+            padding: 6px 12px; font-size: 0.8rem; border-radius: 4px; color: #fff; cursor: pointer;
         }
         .logout-btn:hover { background: var(--primary); border-color: var(--primary); }
 
@@ -147,8 +148,13 @@
             <p>Unified Combat Operations & Target Intel Hub</p>
         </header>
 
+        <!-- Dynamic User Identity & Activity Banner -->
         <div id="welcomeBanner" class="welcome-banner" style="display: none;">
-            <span id="welcomeText"></span>
+            <div class="user-meta">
+                <span id="welcomeText"></span>
+                <span id="userActivityCell"></span>
+                <span id="userStatusCell"></span>
+            </div>
             <button class="logout-btn" onclick="terminateSession()">Clear Key / Sign Out</button>
         </div>
         
@@ -410,6 +416,7 @@
         let currentDisplayedTargets = [];
         let hospitalTimers = {};
         let activeCountdownInterval = null;
+        let personalUserWatcherInterval = null;
 
         window.addEventListener('DOMContentLoaded', () => {
             const preservedKey = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -441,7 +448,7 @@
                 authError.style.color = "#00ffcc";
                 authError.innerText = isAutoLoad ? "🔄 Auto-loading secure token..." : "🔄 Handshaking with Torn API Matrix...";
                 authBtn.disabled = true;
-                const response = await fetch(`https://api.torn.com/user/?selections=profile&key=${apiKey}&comment=InfernumHQ`);
+                const response = await fetch(`https://api.torn.com/user/?selections=profile,basic&key=${apiKey}&comment=InfernumHQ`);
                 const data = await response.json();
                 authBtn.disabled = false;
 
@@ -454,11 +461,15 @@
                 if (data.faction && data.faction.faction_id === ALLOWED_FACTION_ID) {
                     isAuthenticated = true;
                     localStorage.setItem(LOCAL_STORAGE_KEY, apiKey);
-                    document.getElementById('welcomeText').innerText = `Logged into Infernum Command Vault: Welcome, ${data.name}`;
+                    document.getElementById('welcomeText').innerText = `Welcome, ${data.name}`;
                     document.getElementById('welcomeBanner').style.display = 'flex';
                     document.getElementById('authCard').style.display = 'none';
                     document.getElementById('mainDashboard').style.display = 'block';
                     authError.innerText = "";
+                    
+                    // Initial update and initiation of the tracker for the user running the dashboard
+                    updateUserDisplayState(data);
+                    beginPersonalUserTracker(apiKey);
                 } else {
                     authError.style.color = "#ff4444";
                     authError.innerText = `❌ Authorization Denied: Verified faction profile does not match Infernum Perdition's ID context.`;
@@ -474,10 +485,56 @@
         function terminateSession() {
             localStorage.removeItem(LOCAL_STORAGE_KEY);
             isAuthenticated = false;
+            if(personalUserWatcherInterval) clearInterval(personalUserWatcherInterval);
             document.getElementById('apiKeyInput').value = "";
             document.getElementById('welcomeBanner').style.display = 'none';
             document.getElementById('mainDashboard').style.display = 'none';
             document.getElementById('authCard').style.display = 'block';
+        }
+
+        // Monitors the active user every 30 seconds for state updates
+        function beginPersonalUserTracker(apiKey) {
+            if(personalUserWatcherInterval) clearInterval(personalUserWatcherInterval);
+            personalUserWatcherInterval = setInterval(async () => {
+                if(!isAuthenticated) return;
+                try {
+                    const res = await fetch(`https://api.torn.com/user/?selections=profile,basic&key=${apiKey}&comment=InfernumHQ`);
+                    const data = await res.json();
+                    if(!data.error) {
+                        updateUserDisplayState(data);
+                    }
+                } catch(e) { console.log("Failed updating host profile stats background frame."); }
+            }, 30000);
+        }
+
+        function updateUserDisplayState(data) {
+            const actCell = document.getElementById('userActivityCell');
+            const statusCell = document.getElementById('userStatusCell');
+            
+            // Render Online status
+            if(data.last_action && data.last_action.status) {
+                let act = data.last_action.status.toLowerCase();
+                let actClass = "act-offline";
+                if (act === "online") actClass = "act-online";
+                else if (act === "idle") actClass = "act-idle";
+                actCell.className = `activity-indicator ${actClass}`;
+                actCell.innerText = `You: ${act}`;
+            }
+
+            // Render Physical Hospital Condition Status
+            if(data.status) {
+                const state = data.status.state;
+                const untilTimestamp = data.status.until;
+                if(state === "Hospital") {
+                    statusCell.className = "tgt-hosp";
+                    hospitalTimers['self_user_token'] = untilTimestamp;
+                    statusCell.innerText = formatCountdownTime(untilTimestamp);
+                } else {
+                    if(hospitalTimers['self_user_token']) delete hospitalTimers['self_user_token'];
+                    statusCell.innerText = `| Location: ${state || 'Okay'}`;
+                    statusCell.className = state === "Traveling" ? "tgt-travel" : (state === "Jail" ? "tgt-jail" : "tgt-okay");
+                }
+            }
         }
 
         function switchTab(tabId, btnElem) {
@@ -609,7 +666,9 @@
             summaryDiv.innerHTML = `Attacker Configuration Profile: Level ${attacker.lvl} | Base Stats: ${attacker.displayBs}`;
             tbody.innerHTML = "";
             currentDisplayedTargets = [];
-            hospitalTimers = {};
+            
+            // Clean out target-related keys from timer queue but preserve user key
+            Object.keys(hospitalTimers).forEach(k => { if(k !== 'self_user_token') delete hospitalTimers[k]; });
 
             let matches = [];
             enemyRoster.forEach(tgt => {
@@ -718,14 +777,23 @@
             if (activeCountdownInterval) clearInterval(activeCountdownInterval);
             activeCountdownInterval = setInterval(() => {
                 Object.keys(hospitalTimers).forEach(id => {
-                    const cell = document.getElementById(`status-cell-${id}`);
-                    if (!cell) return;
                     let ts = hospitalTimers[id];
                     let currentStr = formatCountdownTime(ts);
-                    cell.innerText = currentStr;
-                    if (currentStr === "Okay") {
-                        cell.className = "tgt-okay";
-                        delete hospitalTimers[id];
+                    
+                    if (id === 'self_user_token') {
+                        const cell = document.getElementById('userStatusCell');
+                        if (cell) {
+                            cell.innerText = `| ${currentStr}`;
+                            if (currentStr === "Okay") { cell.className = "tgt-okay"; delete hospitalTimers[id]; }
+                        }
+                    } else {
+                        const cell = document.getElementById(`status-cell-${id}`);
+                        if (!cell) return;
+                        cell.innerText = currentStr;
+                        if (currentStr === "Okay") {
+                            cell.className = "tgt-okay";
+                            delete hospitalTimers[id];
+                        }
                     }
                 });
             }, 1000);
